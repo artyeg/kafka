@@ -46,7 +46,7 @@ func main() {
 
 	kafkaTopics := strings.Split(*kafkaTopicsCSV, ",")
 
-	consumer, consumerErr := consumergroup.JoinConsumerGroup(*consumerGroup, kafkaTopics, zookeeperNodes, config)
+	consumer, consumerErr := consumergroup.JoinConsumerGroup(*consumerGroup, kafkaTopics, zookeeperNodes, config, 1)
 	if consumerErr != nil {
 		log.Fatalln(consumerErr)
 	}
