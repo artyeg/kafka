@@ -83,7 +83,7 @@ type ConsumerGroup struct {
 }
 
 // Connects to a consumer group, using Zookeeper for auto-discovery
-func JoinConsumerGroup(name string, topics []string, zookeeper []string, config *Config) (cg *ConsumerGroup, err error) {
+func JoinConsumerGroup(name string, topics []string, zookeeper []string, config *Config, partition int32) (cg *ConsumerGroup, err error) {
 
 	if name == "" {
 		return nil, sarama.ConfigurationError("Empty consumergroup name")
@@ -176,7 +176,7 @@ func JoinConsumerGroup(name string, topics []string, zookeeper []string, config 
 	offsetConfig := OffsetManagerConfig{CommitInterval: config.Offsets.CommitInterval}
 	cg.offsetManager = NewZookeeperOffsetManager(cg, &offsetConfig)
 
-	go cg.topicListConsumer(topics)
+	go cg.topicListConsumer(topics, partition)
 
 	return
 }
@@ -250,7 +250,7 @@ func (cg *ConsumerGroup) FlushOffsets() error {
 	return cg.offsetManager.Flush()
 }
 
-func (cg *ConsumerGroup) topicListConsumer(topics []string) {
+func (cg *ConsumerGroup) topicListConsumer(topics []string, partition int32) {
 	for {
 		select {
 		case <-cg.stopper:
@@ -271,7 +271,7 @@ func (cg *ConsumerGroup) topicListConsumer(topics []string) {
 
 		for _, topic := range topics {
 			cg.wg.Add(1)
-			go cg.topicConsumer(topic, cg.messages, cg.errors, stopper)
+			go cg.topicConsumer(topic, partition, cg.messages, cg.errors, stopper)
 		}
 
 		select {
@@ -299,7 +299,7 @@ func (cg *ConsumerGroup) topicListConsumer(topics []string) {
 	}
 }
 
-func (cg *ConsumerGroup) topicConsumer(topic string, messages chan<- *sarama.ConsumerMessage, errors chan<- error, stopper <-chan struct{}) {
+func (cg *ConsumerGroup) topicConsumer(topic string, partition int32, messages chan<- *sarama.ConsumerMessage, errors chan<- error, stopper <-chan struct{}) {
 	defer cg.wg.Done()
 
 	select {
@@ -339,11 +339,11 @@ func (cg *ConsumerGroup) topicConsumer(topic string, messages chan<- *sarama.Con
 
 	// Consume all the assigned partitions
 	var wg sync.WaitGroup
-	for _, pid := range myPartitions {
+	/*	for _, pid := range myPartitions {*/
 
-		wg.Add(1)
-		go cg.partitionConsumer(topic, pid.ID, messages, errors, &wg, stopper)
-	}
+	wg.Add(1)
+	go cg.partitionConsumer(topic, partition, messages, errors, &wg, stopper)
+
 
 	wg.Wait()
 	cg.Logf("%s :: Stopped topic consumer\n", topic)
